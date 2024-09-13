@@ -11,12 +11,12 @@ import re
 import time
 import sys
 
-def handle_options(options):
+def handle_options(options: list):
     print("Available options:")
     try: 
         options.pop(0)
     except IndexError:
-        print("Selenium encountered an error. Please try running the program again.")
+        print("Selenium encountered an error. Please try running the program again.\n\nINFO: Sometimes the elements list is an empty list [] when Selenium picks them up and then the program will crash.\nI tried to mitigate this with the time.sleep() but it works inconsistently.")
         sys.exit(1)
     for i, option in enumerate(options):
         print(f"{i+1}. {option.text}")
@@ -34,88 +34,61 @@ def handle_options(options):
     print(f"You chose: {chosen_option.text}")
     return chosen_option
 
-def clean_text(text):
+def clean_text(text: str):
     text1 = re.sub(r'\s+', ' ', text).strip()
     spaced_text = re.sub(r'(?<!^)(?<!\s)([A-Z]+)([A-Z][a-z])', r'\1\n\2', text1)
     spaced_text = re.sub(r'([a-z])([A-Z])', r'\1\n\2', spaced_text)
     return spaced_text
 
-# Set up the webdriver
+def select_element(element_name: str):
+    select = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.NAME, element_name))
+    )
+    select = Select(select)
+    options = select.options
+    chosen_option = handle_options(options)
+    select.select_by_visible_text(chosen_option.text)
+    return chosen_option.text
+
 options = webdriver.ChromeOptions()
 options.add_argument('headless')  # Run in headless mode
 driver = webdriver.Chrome(options=options)
 
-# Navigate to the website
 driver.get('https://registrar.arizona.edu/dates-and-deadlines')
 
 try:
     file_name = ""
-    # Wait for the first select element to be clickable
-    select1 = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.NAME, 'dates_dropdown_0'))
-    )
-    select1 = Select(select1)
-    options = select1.options
-    chosen_option = handle_options(options)
-    class_dates = chosen_option.text
-    select1.select_by_visible_text(class_dates)
+    class_dates = select_element("dates_dropdown_0")
     file_name += class_dates.replace(' ', '_').replace('-','_').lower()  + '_'
     
-    time.sleep(1)
-    select2 = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.NAME, 'dates_dropdown_1'))
-    )
-    select2 = Select(select2)
-    options = select2.options
-    chosen_option = handle_options(options)
-    select2.select_by_visible_text(chosen_option.text)
-    file_name += chosen_option.text.replace(' ', '_').lower()  + '_' 
+    time.sleep(1) 
+
+    selected_element = select_element("dates_dropdown_1")
+    file_name += selected_element.replace(' ', '_').lower()  + '_' 
     
     time.sleep(1)
-    select3 = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.NAME, 'dates_dropdown_2'))
-    )
-    select3 = Select(select3)
-    options = select3.options
-    chosen_option = handle_options(options)
-    select3.select_by_visible_text(chosen_option.text)
-    file_name += chosen_option.text.replace(' ', '_').lower()  + '_'
+
+    selected_element = select_element("dates_dropdown_2")
+    file_name += selected_element.replace(' ', '_').lower()  + '_'
 
     time.sleep(1)
-    select4 = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.NAME, 'dates_dropdown_3'))
-    )
 
-    select4 = Select(select4)
-    options = select4.options
-    chosen_option = handle_options(options)
-    select4.select_by_visible_text(chosen_option.text)
+    selected_element = select_element("dates_dropdown_3")
+
     if class_dates == 'Standard Class Dates':
-        file_name += chosen_option.text.replace(' ', '_').lower()
+        file_name += selected_element.replace(' ', '_').lower()
     else:
-        file_name += chosen_option.text.split('-')[1].strip().replace(',', '').replace(' ','_').lower()
-
-    if class_dates == "Non-Standard Class Dates":
-        time.sleep(1)
-        select5 = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.NAME, 'dates_dropdown_4'))
-        )
-        select5 = Select(select5)
-        options = select5.options
-        chosen_option = handle_options(options)
-        select5.select_by_visible_text(chosen_option.text)
-        file_name += '_' + chosen_option.text.split('-')[1].strip().replace(' ', '_').lower()  + '_'
+        file_name += selected_element.split('-')[1].strip().replace(',', '').replace(' ','_').lower()
 
         time.sleep(1)
-        select6 = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.NAME, 'dates_dropdown_5'))
-        )
-        select6 = Select(select6)
-        options = select6.options
-        chosen_option = handle_options(options)
-        select6.select_by_visible_text(chosen_option.text)
-        file_name += chosen_option.text.replace(' ', '_').lower()
 
+        selected_element = select_element("dates_dropdown_4")
+        file_name += '_' + selected_element.split('-')[1].strip().replace(' ', '_').lower()  + '_'
+
+        time.sleep(1)
+
+        selected_element = select_element("dates_dropdown_5")
+        file_name += selected_element.replace(' ', '_').lower()
 
     # keep driver open long enough to render all elements for bs4
     time.sleep(1)
@@ -141,7 +114,7 @@ try:
         event.name = event_parts[0]
         event.description = event_parts[1] if len(event_parts) > 1 else ''
         event.begin = date
-        event.make_all_day()  # Optional: set as all-day event
+        event.make_all_day()
         
         # Add the event to the calendar
         calendar.events.add(event)
